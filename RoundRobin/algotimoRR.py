@@ -12,13 +12,11 @@ class Proceso:
         '#1f77b4',  # Azul
         '#2ca02c',  # Verde
         '#9467bd',  # Violeta
-        '#8c564b',  # Marrón
         '#e377c2',  # Rosa
         '#7f7f7f',  # Gris
         '#bcbd22',  # Verde oliva
         '#17becf',  # Cyan
         '#ff7f0e',  # Naranja
-        '#d62728'   # Rojo (no lo usaremos para procesos normales)
     ]
     
     def __init__(self, nombre, tiempo_llegada, rafaga):
