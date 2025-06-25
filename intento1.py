@@ -1,98 +1,137 @@
 import threading
 import time
-import sys
+import tkinter as tk
+from tkinter import ttk
 
 # Variables globales
 want_p = False
 want_q = False
 deadlock_detected = False
-
-# Barrera de sincronización para forzar simultaneidad
 inicio_barrera = threading.Barrier(2)
+estado_p = "🟦 P: Inactivo"
+estado_q = "🟨 Q: Inactivo"
 
-# Función para imprimir con retardo
-def imprimir(msg):
-    print(msg)
-    time.sleep(1)
+# GUI: funciones de actualización
+def actualizar_gui():
+    ventana.after(0, lambda: label_estado_p.config(text=estado_p))
+    ventana.after(0, lambda: label_estado_q.config(text=estado_q))
+    if deadlock_detected:
+        ventana.after(0, lambda: label_resultado.config(text="❌ DEADLOCK DETECTADO", fg="red"))
 
+def log_gui(mensaje):
+    ventana.after(0, lambda: (text_log.insert(tk.END, mensaje + "\n"), text_log.see(tk.END)))
+
+# Procesos
 def proceso_p():
-    global want_p, want_q, deadlock_detected
-    imprimir("🟦 P: Iniciando proceso P")
-    
-    inicio_barrera.wait()  # Sincroniza el inicio con Q
-    
+    global want_p, want_q, deadlock_detected, estado_p
+    estado_p = "🟦 P: Iniciando..."
+    actualizar_gui()
+    log_gui(estado_p)
+
+    inicio_barrera.wait()
+
     want_p = True
-    imprimir("🟦 P: Marcó want_p = True (quiere entrar a sección crítica)")
+    estado_p = "🟦 P: Quiere entrar (want_p = True)"
+    actualizar_gui()
+    log_gui(estado_p)
 
     start_wait = time.time()
     while want_q:
-        imprimir("🟦 P: Esperando... (Q también quiere entrar)")
+        estado_p = "🟦 P: Esperando... (Q también quiere)"
+        actualizar_gui()
+        log_gui(estado_p)
         if time.time() - start_wait > 10:
             deadlock_detected = True
-            imprimir("🟥 P: ¡DEADLOCK detectado después de 10 segundos!")
+            estado_p = "🟥 P: ¡DEADLOCK detectado!"
+            actualizar_gui()
+            log_gui(estado_p)
             return
         time.sleep(1)
-    
-    imprimir("🟦 P: ENTRA a sección crítica (NO debería suceder)")
+
+    estado_p = "🟦 P: ENTRA a sección crítica"
+    actualizar_gui()
+    log_gui(estado_p)
     time.sleep(1)
-    imprimir("🟦 P: SALE de sección crítica")
+
+    estado_p = "🟦 P: SALE de sección crítica"
     want_p = False
+    actualizar_gui()
+    log_gui(estado_p)
 
 def proceso_q():
-    global want_p, want_q, deadlock_detected
-    imprimir("🟨 Q: Iniciando proceso Q")
-    
-    inicio_barrera.wait()  # Sincroniza el inicio con P
+    global want_p, want_q, deadlock_detected, estado_q
+    estado_q = "🟨 Q: Iniciando..."
+    actualizar_gui()
+    log_gui(estado_q)
+
+    inicio_barrera.wait()
 
     want_q = True
-    imprimir("🟨 Q: Marcó want_q = True (quiere entrar a sección crítica)")
+    estado_q = "🟨 Q: Quiere entrar (want_q = True)"
+    actualizar_gui()
+    log_gui(estado_q)
 
     start_wait = time.time()
     while want_p:
-        imprimir("🟨 Q: Esperando... (P también quiere entrar)")
+        estado_q = "🟨 Q: Esperando... (P también quiere)"
+        actualizar_gui()
+        log_gui(estado_q)
         if time.time() - start_wait > 10:
             deadlock_detected = True
-            imprimir("🟥 Q: ¡DEADLOCK detectado después de 10 segundos!")
+            estado_q = "🟥 Q: ¡DEADLOCK detectado!"
+            actualizar_gui()
+            log_gui(estado_q)
             return
         time.sleep(1)
-    
-    imprimir("🟨 Q: ENTRA a sección crítica (NO debería suceder)")
+
+    estado_q = "🟨 Q: ENTRA a sección crítica"
+    actualizar_gui()
+    log_gui(estado_q)
     time.sleep(1)
-    imprimir("🟨 Q: SALE de sección crítica")
+
+    estado_q = "🟨 Q: SALE de sección crítica"
     want_q = False
-
-def monitor_deadlock():
-    global deadlock_detected
-    time.sleep(10.5)  # Margen adicional al timeout
-    
-
-# Configurar hilos
-thread_p = threading.Thread(target=proceso_p)
-thread_q = threading.Thread(target=proceso_q)
-monitor_thread = threading.Thread(target=monitor_deadlock, daemon=True)
+    actualizar_gui()
+    log_gui(estado_q)
 
 # Iniciar simulación
-print("\n" + "="*70)
-print("🔁 SIMULACIÓN: INTENTO 1 DEL ALGORITMO DE DEKKER")
-print("🛑 OBJETIVO: Mostrar bloqueo mutuo (deadlock)")
-print("="*70 + "\n")
-time.sleep(1)
+def iniciar_simulacion():
+    global deadlock_detected, want_p, want_q, estado_p, estado_q
+    want_p = want_q = deadlock_detected = False
+    estado_p = "🟦 P: Inactivo"
+    estado_q = "🟨 Q: Inactivo"
+    actualizar_gui()
+    label_resultado.config(text="")
+    text_log.delete("1.0", tk.END)
 
-monitor_thread.start()
-thread_p.start()
-thread_q.start()
+    threading.Thread(target=proceso_p).start()
+    threading.Thread(target=proceso_q).start()
 
-# Esperar a que terminen
-thread_p.join(timeout=12)
-thread_q.join(timeout=12)
+# GUI principal
+ventana = tk.Tk()
+ventana.title("Simulación Algoritmo de Dekker - Intento 1")
+ventana.geometry("700x500")
 
-# Resultado final
-if deadlock_detected:
-    print("\n" + "="*70)
-    imprimir("❌ RESULTADO: DEADLOCK CONFIRMADO")
-    imprimir("Ambos procesos marcaron que querían entrar")
-    imprimir("y quedaron esperando mutuamente por 10 segundos.")
-    imprimir("Esto demuestra que el intento 1 de Dekker")
-    imprimir("NO garantiza exclusión mutua ni evita bloqueo.")
-    print("="*70)
-    sys.exit(0)
+titulo = ttk.Label(ventana, text="🔁 Intento 1 - Dekker (Deadlock)", font=("Arial", 16))
+titulo.pack(pady=10)
+
+label_estado_p = ttk.Label(ventana, text="🟦 P: Inactivo", font=("Arial", 12))
+label_estado_p.pack(pady=5)
+
+label_estado_q = ttk.Label(ventana, text="🟨 Q: Inactivo", font=("Arial", 12))
+label_estado_q.pack(pady=5)
+
+label_resultado = ttk.Label(ventana, text="", font=("Arial", 14))
+label_resultado.pack(pady=10)
+
+boton_inicio = ttk.Button(ventana, text="▶ Iniciar Simulación", command=iniciar_simulacion)
+boton_inicio.pack(pady=10)
+
+# Consola visual
+frame_log = ttk.Frame(ventana)
+frame_log.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+text_log = tk.Text(frame_log, height=10, font=("Courier", 10))
+text_log.pack(fill=tk.BOTH, expand=True)
+
+ventana.mainloop()
